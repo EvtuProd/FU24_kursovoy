@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Меню</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <!-- Добавить метатеги для CSRF -->
+    <meta name="_csrf" content="${csrfToken.token}"/>
+    <meta name="_csrf_header" content="${csrfHeaderName}"/>
+</head>
+
+<body>
+<h1>Меню</h1>
+<div class="link-container">
+    <button onclick="location.href='/cars/add'" class="menu-button">Добавить машину</button>
+    <button onclick="location.href='/cars/search'" class="menu-button">Найти машину</button>
+    <button onclick="location.href='/cars/histogram'" class="menu-button">Гистограмма</button>
+    <button onclick="location.href='/cars/about'" class="menu-button">Об авторе</button>
+</div>
+</body>
+
+</html>

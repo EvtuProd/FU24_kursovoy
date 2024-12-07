@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавить Автомобиль</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Здесь мы ссылаемся на CSS-файл -->
+</head>
+
+<body>
+<h1>Добавить Автомобиль</h1>
+<form id="carForm">
+    <select name="brand" required>
+        <option value="">Выберите марку автомобиля</option>
+        <th:block th:each="brand : ${brands}">
+            <option th:value="${brand.brandCode}" th:text="${brand.brandName}"></option>
+        </th:block>
+    </select>
+
+    <select name="model" required>
+        <option value="">Выберите модель автомобиля</option>
+        <!-- Модели будут добавлены динамически через JavaScript -->
+    </select>
+
+    <input type="number" name="releaseYear" placeholder="Год выпуска" required min="1886">
+    <input type="date" name="regDate" placeholder="Дата регистрации" required>
+    <input type="text" name="ownerName" placeholder="Имя владельца" required>
+    <input type="hidden" name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <button type="submit">Добавить</button>
+</form>
+
+<a href="/cars">Назад к списку автомобилей</a>
+
+<div id="error">
+    <p></p>
+</div>
+
+<script>
+    const brandSelect = document.querySelector('select[name="brand"]');
+    const modelSelect = document.querySelector('select[name="model"]');
+
+    brandSelect.addEventListener('change', function() {
+        const selectedBrandCode = this.value;
+
+        // Очистка текущего списка моделей
+        modelSelect.innerHTML = '<option value="">Выберите модель автомобиля</option>';
+
+        if (selectedBrandCode) {
+            fetch(`/cars/api/models?brandCode=${selectedBrandCode}`) // Используйте правильный путь
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Ошибка при загрузке моделей');
+                    }
+                    return response.json();
+                })
+                .then(models => {
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.modelCode;
+                        option.textContent = model.modelName;
+                        modelSelect.add(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                });
+        }
+    });
+    document.getElementById('carForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // Предотвращаем стандартное поведение формы
+
+        const formData = new FormData(this);
+
+        fetch('/cars/api/add', { // Скорректированный URL для добавления автомобиля
+            method: 'POST',
+            body: formData,
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка при добавлении автомобиля');
+                }
+                return response.json(); // Если ваш API возвращает JSON
+            })
+            .then(data => {
+                alert('Автомобиль успешно добавлен!'); // Уведомление об успешном добавлении
+                // Можно обновить список автомобилей на странице, если это необходимо
+            })
+            .catch(error => {
+                const errorDiv = document.getElementById('error');
+                errorDiv.style.display = 'block';
+                errorDiv.querySelector('p').innerText = error.message; // Показываем ошибку
+            });
+    });
+</script>
+</body>
+
+</html>

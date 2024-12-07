@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Гистограмма регистрации автомобилей</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .chart-container {
+            background-color: white; /* Белая подложка */
+            padding: 20px;
+            border-radius: 12px; /* Закругление углов */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Лёгкая тень для объёма */
+            width: 80%; /* Ширина контейнера */
+            max-width: 900px;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+<h1>Гистограмма регистрации автомобилей</h1>
+<div class="chart-container">
+    <canvas id="myChart"></canvas>
+</div>
+<script>
+    async function fetchCarRegCount() {
+        try {
+            const response = await fetch('/cars/api/reg-count'); // Проверьте правильность пути
+            const carsCount = await response.json();
+
+            console.log(carsCount); // Проверка полученных данных
+
+            const labels = [];
+            const dataCount = [];
+
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                const dateString = date.toISOString().split('T')[0]; // Получаем формат YYYY-MM-DD
+                labels.push(dateString);
+                dataCount.push(carsCount[dateString] || 0); // Используем 0, если автомобилей не было зарегистрировано в этот день
+            }
+
+            console.log("Labels:", labels); // Проверка меток
+            console.log("Data Count:", dataCount); // Проверка значений
+
+            const ctx = document.getElementById('myChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Количество зарегистрированных автомобилей',
+                        data: dataCount,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, // Делаем диаграмму адаптивной
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка при получении данных:', error);
+        }
+    }
+
+    fetchCarRegCount(); // Запускаем функцию
+</script>
+</body>
+
+</html>

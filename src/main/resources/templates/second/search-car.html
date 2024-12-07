@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск Автомобилей</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .search-results {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            color: #333;
+            display: none; /* Скрываем до выполнения поиска */
+        }
+        h2 {
+            margin: 30px 0 10px;
+            font-size: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+    <script>
+        $(document).ready(function () {
+            $('form').on('submit', function (event) {
+                event.preventDefault(); // Предотвращаем стандартное поведение формы
+                const formData = $(this).serialize(); // Собираем данные формы
+
+                // Показываем индикатор загрузки
+                $('#loading').show();
+                $('#error').hide();
+
+                $.ajax({
+                    type: 'POST',
+                    url: $(this).attr('action'), // Получаем URL для запроса
+                    data: formData, // Отправляем данные формы
+                    success: function (response) {
+                        updateTable(response); // Обновляем таблицу результатами
+                        updateResultCount(response.length); // Обновляем количество найденных автомобилей
+                    },
+                    error: function (xhr) {
+                        $('#error').text('Ошибка: ' + xhr.responseText).show(); // Отображаем ошибку
+                    },
+                    complete: function () {
+                        $('#loading').hide(); // Скрываем индикатор загрузки
+                    }
+                });
+            });
+
+            // Функция обновления количества найденных автомобилей
+            function updateResultCount(count) {
+                const resultBlock = $('.search-results');
+                resultBlock.text(`Найдено автомобилей: ${count}`);
+                resultBlock.show(); // Показываем блок
+            }
+
+            // Обработка кликов для сортировки
+            $('#resultsTable th').on('click', function () {
+                const index = $(this).index();
+                const rows = $('#resultsTable tbody tr').get();
+                const currentOrder = $(this).data('order') || 'asc';
+                const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                $(this).data('order', newOrder);
+
+                rows.sort((a, b) => {
+                    const keyA = $(a).children('td').eq(index).text();
+                    const keyB = $(b).children('td').eq(index).text();
+
+                    if ($.isNumeric(keyA) && $.isNumeric(keyB)) {
+                        return newOrder === 'asc' ? keyA - keyB : keyB - keyA;
+                    }
+                    return newOrder === 'asc' ? keyA.localeCompare(keyB) : keyB.localeCompare(keyA);
+                });
+
+                $.each(rows, function (index, row) {
+                    $('#resultsTable tbody').append(row);
+                });
+            });
+        });
+
+        function updateTable(data) {
+            let tableBody = $('#resultsTable tbody');
+            tableBody.empty(); // Очищаем предыдущие результаты
+
+            if (data.length === 0) {
+                tableBody.append('<tr><td colspan="5">Результаты не найдены</td></tr>');
+                return;
+            }
+
+            data.forEach(zapis => {
+                let row = `<tr data-id="${zapis.id}">
+                    <td class="editable" data-field="brand">${zapis.brand}</td>
+                    <td class="editable" data-field="releaseYear">${zapis.releaseYear}</td>
+                    <td class="editable" data-field="regDate">${zapis.regDate}</td>
+                    <td class="editable" data-field="ownerName">${zapis.ownerName}</td>
+                    <td>
+                        <button onclick="editCar(${zapis.id}, this)">Редактировать</button>
+                        <button onclick="deleteCar(${zapis.id})">Удалить</button>
+                    </td>
+                </tr>`;
+                tableBody.append(row);
+            });
+        }
+
+        function editCar(carId, button) {
+            const row = $(button).closest('tr');
+            const cells = row.find('.editable');
+            if ($(button).text() === 'Редактировать') {
+                cells.each(function () {
+                    const cell = $(this);
+                    const currentValue = cell.text();
+                    cell.html(`<input type="text" value="${currentValue}" />`); // Меняем текст на input
+                });
+                $(button).text('Сохранить');
+            } else {
+                const updatedData = {};
+                cells.each(function () {
+                    const cell = $(this);
+                    const field = cell.data('field');
+                    updatedData[field] = cell.find('input').val(); // Собираем обновленные данные
+                });
+                // Отправка обновлённых данных на сервер
+                $.ajax({
+                    type: 'PUT',
+                    url: `/cars/api/update/${carId}`, // URL для обновления автомобиля
+                    data: JSON.stringify(updatedData),
+                    contentType: 'application/json',
+                    success: function (response) {
+                        alert('Автомобиль успешно обновлен!');
+                        $('form').submit(); // Перезагружаем таблицу
+                    },
+                    error: function (xhr) {
+                        alert('Ошибка при обновлении автомобиля: ' + xhr.responseText);
+                    }
+                });
+            }
+        }
+
+        function deleteCar(carId) {
+            if (confirm('Вы уверены, что хотите удалить этот автомобиль?')) {
+                $.ajax({
+                    type: 'DELETE',
+                    url: `/cars/api/delete/${carId}`, // URL для удаления автомобиля
+                    success: function (response) {
+                        alert('Автомобиль успешно удален!');
+                        $('form').submit(); // Перезагружаем таблицу
+                    },
+                    error: function (xhr) {
+                        alert('Ошибка при удалении автомобиля: ' + xhr.responseText);
+                    }
+                });
+            }
+        }
+    </script>
+</head>
+
+<body>
+<h1>Поиск Автомобилей</h1>
+<form th:action="@{/cars/api/search}" method="post">
+    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+    <input type="text" name="brand" placeholder="Марка автомобиля" />
+    <input type="text" name="ownerName" placeholder="Имя владельца" />
+    <input type="date" name="startDate" placeholder="Дата регистрации" />
+    <input type="date" name="endDate" placeholder="Дата возврата" />
+    <button type="submit">Поиск</button>
+</form>
+<a href="/zapis">Назад к списку автомобилей</a>
+
+<div class="search-results">Найдено 0 автомобилей</div>
+
+<div id="loading">Загрузка...</div>
+<div id="error"></div>
+
+<h2>Результаты поиска:</h2>
+<table id="resultsTable">
+    <thead>
+    <tr>
+        <th>Марка</th>
+        <th>Год выпуска</th>
+        <th>Дата регистрации</th>
+        <th>Имя владельца</th>
+        <th>Действия</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Здесь будут отображаться результаты поиска -->
+    </tbody>
+</table>
+</body>
+
+</html>
